@@ -1,0 +1,35 @@
+<configuration>
+
+	<property name="contextName" value="jsp-jpa-crud" />
+	<property name="encoderPattern" value="%d{yyyy-MM-dd HH:mm:ss.SSS} | %-5level | %thread | [%file:%line] | %msg%n" />
+
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${encoderPattern}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="LOG-FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>logs/${contextName}.log</file>
+
+		<encoder>
+			<pattern>${encoderPattern}</pattern>
+		</encoder>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+	      <!-- daily rollover -->
+	      <fileNamePattern>logs/history/${contextName}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+	      <maxFileSize>100MB</maxFileSize>
+	      <maxHistory>10</maxHistory>
+	    </rollingPolicy>
+	</appender>
+
+    <logger name="br.com.renanribeiro" level="DEBUG" additivity="false">
+        <appender-ref ref="LOG-FILE" />
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="LOG-FILE" />
+    </root>
+
+</configuration>
