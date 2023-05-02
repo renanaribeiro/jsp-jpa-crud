@@ -1,5 +1,6 @@
 package br.com.renanribeiro.controller;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,11 +29,17 @@ public class PessoaController {
 	
 	@Autowired
 	PessoaRepository pessoaRepository;
-	
+		
 	@GetMapping("/listar")
-	public List<Pessoa> getAllPessoas() {
+	public Collection<Pessoa> getAllPessoas() {
 
 		return pessoaRepository.findAll();
+	}
+	
+	@GetMapping("/listar-funcionarios")
+	public List<Pessoa> getAllFuncionarios() {
+		
+		return pessoaRepository.findAllByFuncionarioTrue();
 	}
 
 	@GetMapping("/{id}")
@@ -77,10 +84,11 @@ public class PessoaController {
 
 		try {
 			Optional<Pessoa> found = pessoaRepository.findById(pessoa.getId());
+			
 			if (found.isPresent()) {
-				Pessoa toUpdate = found.get();
-				toUpdate = pessoaRepository.save(pessoa);
-				response = new ResponseEntity<Pessoa>(toUpdate, HttpStatus.OK);
+				Pessoa toEdit = found.get();
+				toEdit = pessoaRepository.save(pessoa);
+				response = new ResponseEntity<Pessoa>(toEdit, HttpStatus.OK);
 			} else {
 				log.warn("Pessoa com ID = {} não encontrada para editar!", pessoa.getId());
 				response = new ResponseEntity<>(HttpStatus.NOT_FOUND);
@@ -103,6 +111,7 @@ public class PessoaController {
 
 		try {
 			Optional<Pessoa> found = pessoaRepository.findById(id);
+			
 			if (found.isPresent()) {
 				pessoaRepository.deleteById(id);
 				log.info("Pessoa com ID = {} excluída com sucesso!", id);

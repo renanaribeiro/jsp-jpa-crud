@@ -1,121 +1,230 @@
 package br.com.renanribeiro.controller;
 
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import javax.validation.ConstraintViolationException;
+import javax.annotation.PostConstruct;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
 
+import br.com.renanribeiro.model.Pessoa;
 import br.com.renanribeiro.model.Projeto;
+import br.com.renanribeiro.repository.PessoaRepository;
 import br.com.renanribeiro.repository.ProjetoRepository;
+import br.com.renanribeiro.util.RiscoEnum;
+import br.com.renanribeiro.util.StatusEnum;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RestController
+@Controller
 @RequestMapping("/projetos")
 public class ProjetoController {
-	
+
 	@Autowired
 	ProjetoRepository projetoRepository;
 	
-	@GetMapping("/listar")
-	public List<Projeto> getAllProjetos() {
-
-		return projetoRepository.findAll();
+	@Autowired
+	PessoaRepository pessoaRepository;
+	
+	public static List<Projeto> _projetos = new ArrayList<Projeto>();
+	
+	@PostConstruct
+	private void init() {
+		_projetos = projetoRepository.findAll();
 	}
-
-	@GetMapping("/{id}")
-	public ResponseEntity<Projeto> getProjetoById(@PathVariable Long id) {
-
-		ResponseEntity<Projeto> response;
-		Optional<Projeto> found = projetoRepository.findById(id);
-
-		if (found.isPresent()) {
-			response = new ResponseEntity<Projeto>(found.get(), HttpStatus.OK);
-		} else {
-			response = new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-
-		return response;
+	
+	@GetMapping()
+	public ModelAndView listarProjetosView() {
+		ModelAndView mav = new ModelAndView("index");
+		mav.addObject("projetos", _projetos);
+		return mav;
 	}
-
+	
+	@GetMapping("/novo")
+	public ModelAndView novoProjetoView() {
+		ModelAndView mav = new ModelAndView("projeto-form");
+		List<Pessoa> funcionarios = pessoaRepository.findAllByFuncionarioTrue();
+		mav.addObject("projeto", null);
+		mav.addObject("funcionarios", funcionarios);
+		return mav;
+	}
+	
 	@PostMapping("/criar")
-	public ResponseEntity<Projeto> createProjeto(@RequestBody Projeto projeto) {
-
-		ResponseEntity<Projeto> response;
-
+	public void criarProjeto(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		try {
+			String nome = request.getParameter("nome");
+			String _dataInicio = request.getParameter("dataInicio");
+			String _dataPrevisaoFim = request.getParameter("dataPrevisaoFim");
+			String _dataFim = request.getParameter("dataFim");
+			String descricao = request.getParameter("descricao");
+			String _orcamento = request.getParameter("orcamento");
+			String _risco = request.getParameter("risco");
+			String _gerenteId = request.getParameter("gerenteId");
+			
+			LocalDate dataInicio = !Strings.isBlank(_dataInicio) ? LocalDate.parse(_dataInicio) : null;
+			LocalDate dataPrevisaoFim = !Strings.isBlank(_dataPrevisaoFim) ? LocalDate.parse(_dataPrevisaoFim) : null;
+			LocalDate dataFim = !Strings.isBlank(_dataFim) ? LocalDate.parse(_dataFim) : null;
+			double orcamento = !Strings.isBlank(_orcamento) ? Double.parseDouble(_orcamento) : 0;
+			RiscoEnum risco = !Strings.isBlank(_risco) ? RiscoEnum.getRisco(_risco) : RiscoEnum.Baixo;
+			Pessoa gerente = null;
+			
+			if (!Strings.isBlank(_gerenteId)) {
+				Long gerenteId = Long.parseLong(_gerenteId);
+				Optional<Pessoa> found = pessoaRepository.findById(gerenteId);
+				if (found.isPresent()) {
+					gerente = found.get();
+				}
+			}
+
+			Projeto projeto = new Projeto();
+			projeto.setNome(nome);
+			projeto.setDataInicio(dataInicio);
+			projeto.setDataPrevisaoFim(dataPrevisaoFim);
+			projeto.setDataFim(dataFim);
+			projeto.setDescricao(descricao);
+			projeto.setOrcamento(orcamento);
+			projeto.setRisco(risco);
+			projeto.setGerente(gerente);
 			projeto = projetoRepository.save(projeto);
-			log.info("Projeto criada com sucesso: {}", projeto);
-			response = new ResponseEntity<Projeto>(projeto, HttpStatus.CREATED);
-		} catch (ConstraintViolationException ec) {
-			log.error("Objeto inválido para criar Projeto: {}", ec.getMessage());
-			response = new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-		} catch (Exception e) {
-			log.error("Falha ao criar Projeto: {}", e.getMessage());
-			response = new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+			_projetos.add(projeto);
+			log.info("Projeto criado com sucesso: {}", projeto);
+			response.sendRedirect("/projetos");
+		} catch (NumberFormatException e1) {
+			log.error("Falha ao converter objeto em Projeto: {}", e1);
+			request.setAttribute("message", e1.getMessage());
+			request.getRequestDispatcher("/error.jsp").forward(request, response);
+		} catch (IOException e2) {
+			log.error("Falha ao criar Projeto: {}", e2);
+			request.setAttribute("message", e2.getMessage());
+			request.getRequestDispatcher("/error.jsp").forward(request, response);
 		}
-
-		return response;
 	}
-
-	@PutMapping("/editar")
-	public ResponseEntity<Projeto> editProjeto(@RequestBody Projeto projeto) {
-
-		ResponseEntity<Projeto> response;
-
+	
+	@GetMapping("/atualizar/{id}")
+	public ModelAndView atualizarProjetoView(@PathVariable("id") Long id) {
+		ModelAndView mav = new ModelAndView("projeto-form");
 		try {
-			Optional<Projeto> found = projetoRepository.findById(projeto.getId());
-			if (found.isPresent()) {
-				Projeto toUpdate = found.get();
-				toUpdate = projetoRepository.save(toUpdate);
-				response = new ResponseEntity<Projeto>(toUpdate, HttpStatus.OK);
+			Projeto found = _projetos.stream().filter(proj -> proj.getId().equals(id)).findAny().orElse(null);
+			
+			if (found != null) {
+				List<Pessoa> funcionarios = pessoaRepository.findAllByFuncionarioTrue();
+				mav.addObject("projeto", found);
+				mav.addObject("funcionarios", funcionarios);				
 			} else {
-				log.warn("Projeto com ID = {} não encontrada para editar!", projeto.getId());
-				response = new ResponseEntity<>(HttpStatus.NOT_FOUND);
-			}
-		} catch (ConstraintViolationException ec) {
-			log.error("Objeto inválido para editar Projeto: {}", ec.getMessage());
-			response = new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+				throw new Exception("Projeto não encontrado para editar!");
+			}			
 		} catch (Exception e) {
-			log.error("Falha ao editar Projeto: {}", e.getMessage());
-			response = new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+			log.error("Falha ao identificar Projeto com ID = {}: {}", id, e.getMessage());
+			mav.setViewName("error");
+			mav.addObject("message", e.getMessage());
 		}
-
-		return response;
+		
+		return mav;
 	}
-
-	@DeleteMapping("/excluir/{id}")
-	public ResponseEntity<Boolean> deleteProjeto(@PathVariable Long id) {
-
-		ResponseEntity<Boolean> response;
-
+	
+	@PostMapping("/editar")
+	public void editarProjeto(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
 		try {
-			Optional<Projeto> found = projetoRepository.findById(id);
-			if (found.isPresent()) {
-				projetoRepository.deleteById(id);
-				log.info("Projeto com ID = {} excluída com sucesso!", id);
-				response = new ResponseEntity<Boolean>(true, HttpStatus.OK);
-			} else {
-				log.warn("Projeto com ID = {} não encontrada para excluir!", id);
-				response = new ResponseEntity<Boolean>(false, HttpStatus.NOT_FOUND);
+			String _id = request.getParameter("id");
+			String nome = request.getParameter("nome");
+			String _dataInicio = request.getParameter("dataInicio");
+			String _dataPrevisaoFim = request.getParameter("dataPrevisaoFim");
+			String _dataFim = request.getParameter("dataFim");
+			String descricao = request.getParameter("descricao");
+			String _orcamento = request.getParameter("orcamento");
+			String _risco = request.getParameter("risco");
+			String _gerenteId = request.getParameter("gerenteId");
+			
+			Long id = Long.valueOf(_id);
+			LocalDate dataInicio = !Strings.isBlank(_dataInicio) ? LocalDate.parse(_dataInicio) : null;
+			LocalDate dataPrevisaoFim = !Strings.isBlank(_dataPrevisaoFim) ? LocalDate.parse(_dataPrevisaoFim) : null;
+			LocalDate dataFim = !Strings.isBlank(_dataFim) ? LocalDate.parse(_dataFim) : null;
+			double orcamento = !Strings.isBlank(_orcamento) ? Double.parseDouble(_orcamento) : 0;
+			RiscoEnum risco = !Strings.isBlank(_risco) ? RiscoEnum.getRisco(_risco) : RiscoEnum.Baixo;
+			Pessoa gerente = null;
+			
+			if (!Strings.isBlank(_gerenteId)) {
+				Long gerenteId = Long.parseLong(_gerenteId);
+				Pessoa gerenteFound = pessoaRepository.getById(gerenteId);
+				if (gerenteFound != null) {
+					gerente = gerenteFound;
+				}
 			}
-		} catch (Exception e) {
-			log.error("Falha ao excluir Projeto: {}", e.getMessage());
-			response = new ResponseEntity<Boolean>(false, HttpStatus.INTERNAL_SERVER_ERROR);
+			
+			Projeto found = _projetos.stream().filter(proj -> proj.getId().equals(id)).findAny().orElse(null);
+			
+			if (found != null) {
+				found.setNome(nome);
+				found.setDataInicio(dataInicio);
+				found.setDataPrevisaoFim(dataPrevisaoFim);
+				found.setDataFim(dataFim);
+				found.setDescricao(descricao);
+				found.setOrcamento(orcamento);
+				found.setRisco(risco);
+				found.setGerente(gerente);
+				found = projetoRepository.save(found);
+				response.sendRedirect("/projetos");
+			} else {
+				log.error("Projeto com ID = {} não encontrado para editar!", id);
+				throw new Exception("Projeto não encontrado!");
+			}
+		} catch (NumberFormatException e1) {
+			log.error("Falha ao converter objeto em Projeto: {}", e1);
+			request.setAttribute("message", e1.getMessage());
+			request.getRequestDispatcher("/error.jsp").forward(request, response);
+		} catch (Exception e2) {
+			log.error("Falha ao editar Projeto: {}", e2);
+			request.setAttribute("message", e2.getMessage());
+			request.getRequestDispatcher("/error.jsp").forward(request, response);
 		}
-
-		return response;
+	}
+	
+	@GetMapping("/excluir/{id}")
+	public ModelAndView excluirProjeto(@PathVariable("id") Long id) {
+		ModelAndView mav = new ModelAndView("index");
+		
+		try {
+			Projeto found = _projetos.stream().filter(proj -> proj.getId().equals(id)).findAny().orElse(null);
+			
+			if (found != null) {
+				
+				StatusEnum currentStatus = found.getStatus();
+				if (currentStatus != null && (
+					currentStatus != StatusEnum.Iniciado && 
+					currentStatus != StatusEnum.EmAndamento && 
+					currentStatus != StatusEnum.Encerrado)
+				) {
+					projetoRepository.delete(found);
+					_projetos.remove(found);
+					log.info("Projeto excluído com sucesso: {}", found);
+					mav.addObject("projetos", _projetos);
+				} else {
+					throw new Exception("Não é permitido excluir o projeto no status atual de " + currentStatus);
+				}
+				
+			} else {
+				log.error("Projeto com ID = {} não encontrado para excluir!", id);
+				throw new Exception("Projeto não encontrado para excluir!");
+			}			
+		} catch (Exception e) {
+			log.error("Falha ao excluir Projeto com ID = {}: {}", id, e.getMessage());
+			mav.setViewName("error");
+			mav.addObject("message", e.getMessage());
+		}
+		
+		return mav;
 	}
 }

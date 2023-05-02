@@ -15,6 +15,8 @@ import javax.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import br.com.renanribeiro.util.RiscoEnum;
+import br.com.renanribeiro.util.StatusEnum;
 import lombok.Data;
 
 @Data
@@ -39,13 +41,15 @@ public class Projeto {
 	
 	private String descricao;
 	
-	private String status;
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	@Transient
+	private StatusEnum status;
 	
 	private double orcamento;
 	
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	@Transient
-	private String risco;
+	private RiscoEnum risco;
 	
 	@NotNull
 	@ManyToOne(cascade = { CascadeType.MERGE })

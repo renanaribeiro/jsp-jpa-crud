@@ -1,0 +1,24 @@
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+.custom-add-btn {
+    background: linear-gradient(#00375f,#005792);
+    color: #fff;
+}
+
+.btnSpace {
+	margin: 17px;
+}
+
+.add-space-under {
+	margin-bottom: 1rem !important;
+}
