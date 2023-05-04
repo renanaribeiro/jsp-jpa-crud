@@ -85,7 +85,12 @@ public class ProjetoController {
 				Long gerenteId = Long.parseLong(_gerenteId);
 				Optional<Pessoa> found = pessoaRepository.findById(gerenteId);
 				if (found.isPresent()) {
-					gerente = found.get();
+					if (found.get().isFuncionario()) {						
+						gerente = found.get();
+					} else {
+						log.warn("Gerente '{}' vinculado ao projeto não é funcionário, abortando criação...", found.get().getNome());
+						throw new Exception("Gerente vinculado não é Funcionário");
+					}
 				}
 			}
 
@@ -95,6 +100,7 @@ public class ProjetoController {
 			projeto.setDataPrevisaoFim(dataPrevisaoFim);
 			projeto.setDataFim(dataFim);
 			projeto.setDescricao(descricao);
+			projeto.setStatus(StatusEnum.Iniciado);
 			projeto.setOrcamento(orcamento);
 			projeto.setRisco(risco);
 			projeto.setGerente(gerente);
@@ -106,7 +112,7 @@ public class ProjetoController {
 			log.error("Falha ao converter objeto em Projeto: {}", e1);
 			request.setAttribute("message", e1.getMessage());
 			request.getRequestDispatcher("/error.jsp").forward(request, response);
-		} catch (IOException e2) {
+		} catch (Exception e2) {
 			log.error("Falha ao criar Projeto: {}", e2);
 			request.setAttribute("message", e2.getMessage());
 			request.getRequestDispatcher("/error.jsp").forward(request, response);
@@ -160,7 +166,12 @@ public class ProjetoController {
 				Long gerenteId = Long.parseLong(_gerenteId);
 				Pessoa gerenteFound = pessoaRepository.getById(gerenteId);
 				if (gerenteFound != null) {
-					gerente = gerenteFound;
+					if (gerenteFound.isFuncionario()) {						
+						gerente = gerenteFound;
+					} else {
+						log.warn("Gerente '{}' vinculado ao projeto não é funcionário, abortando criação...", gerenteFound.getNome());
+						throw new Exception("Gerente vinculado não é Funcionário");
+					}
 				}
 			}
 			
